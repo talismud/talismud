@@ -66,6 +66,7 @@ def handle_data(
 ) -> SqliteEngine:
     """Connect to the database and bind models."""
     from data.account import Account
+    from data.base.coordinates import Coordinates
     from data.character import Character
     from data.delay import Delay
     from data.exit import Exit
@@ -84,6 +85,7 @@ def handle_data(
         {
             Account,
             Character,
+            Coordinates,
             Delay,
             Exit,
             Generator,

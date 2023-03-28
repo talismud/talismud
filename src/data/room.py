@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 
 from data.base.node import Field, Node
 from data.exit import Direction
+from data.handler.coordinates import CoordinateHandler
 from data.handler.description import DescriptionHandler
 from data.handler.exits import ExitHandler
 
@@ -47,6 +48,7 @@ class Room(Node):
     barcode: str = Field(bpk=True, default="unknown", unique=True)
     title: str = "no title"
     description: DescriptionHandler = Field(default_factory=DescriptionHandler)
+    coordinates: CoordinateHandler = Field(default_factory=CoordinateHandler)
     exits: ExitHandler = Field(default_factory=ExitHandler)
 
     def look(self, character: "Character") -> str:
