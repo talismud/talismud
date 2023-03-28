@@ -368,6 +368,12 @@ class CoordinateHandler(BaseHandler):
 
             self._has_valid = self._valid
 
+    def from_blueprint(self, coordinates: dict[str, int | float]) -> None:
+        """Recover the description from a blueprint."""
+        match coordinates:
+            case {"x": x, "y": y, "z": z}:
+                self.update(x, y, z)
+
     def _fetch_coordinates(self):
         """Fetch the object coordinates."""
         if self._row is None:
