@@ -67,7 +67,15 @@ class Room(Node):
         else:
             exits = "There is no obvious exit."
 
-        lines = [
+        lines = []
+
+        if character.permissions.has("admin"):
+            ident = f"# {self.barcode}"
+            if (coordinates := getattr(self, "coordinates", None)) is not None:
+                ident += f" ({coordinates.rounded})"
+            lines += [ident, ""]
+
+        lines += [
             self.title,
             "",
             description,

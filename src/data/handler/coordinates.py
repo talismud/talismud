@@ -115,6 +115,17 @@ class CoordinateHandler(BaseHandler):
         self._check_valid()
         self.save()
 
+    @property
+    def rounded(self) -> str:
+        """Return the rounded coordinates (as ints)."""
+        coordinates = (x, y, z) = (self.x, self.y, self.z)
+        if any(c is None for c in coordinates):
+            msg = "UNSET"
+        else:
+            msg = f"{round(x)} {round(y)} {round(z)}"
+
+        return msg
+
     def __repr__(self):
         if self._valid:
             ret = f"<Coordinates {self._x} {self._y} {self._z}>"
