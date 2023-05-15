@@ -37,8 +37,27 @@ class Add(Command):
     """Command to add a new room in a given direction.
 
     Usage:
-      room add <direction>
-      radd <direction>
+      room add <direction> [options]
+      radd <direction> [options]
+
+    This command can be used to add a new room.  You can use the command
+    `room add` or its alias `radd` for short.  The direction
+    should be specified first: it can be a direction name (like east
+    or southwest) or an alias (like e or sw).
+
+    Available options (all optional):
+      title: the title of the new room.
+      barcode: the barcode of the new room.
+
+    Usage:
+      radd w
+      radd east title=A parking lot
+      radd sw barcode=parking
+      radd up title=The top of a tree barcode=treetop
+
+    If the barcode of the new room isn't specified with the barcode=
+    option, the next barcode is selected.  If you are in the room
+    demo1 for instance, the new barcode will be demo2 (if it's available).
 
     """
 
@@ -46,12 +65,9 @@ class Add(Command):
     global_alias = "radd"
     args = Command.new_parser()
     direction = args.add_argument("word", dest="direction")
-    names = ", ".join(
-        direction.value
-        for direction in Direction
-        if direction is not Direction.INVALID
+    direction.msg_mandatory = (
+        "You should specify a direction like 'east' or 'sw'."
     )
-    direction.msg_mandatory = "You should specify a direction: {names}."
     options = args.add_argument("options", optional=True)
     options.add_option("title", "t", default="A new room")
     options.add_option("barcode", "b", default=None)

@@ -31,6 +31,8 @@
 
 from sqlalchemy.orm import Session, SessionTransaction
 
+from data.log import logger
+
 
 class TalisMUDSession(Session):
 
@@ -42,7 +44,9 @@ class TalisMUDSession(Session):
         """Begin a new session."""
         TalisMUDSessionTransaction.talismud_engine = self.talismud_engine
         transaction = TalisMUDSessionTransaction(self)
-        self.talismud_engine.log("BEGIN", (id(transaction),))
+        self.talismud_engine.current_transaction = next(
+            self.talismud_engine.transaction_counter
+        )
         return transaction
 
 
@@ -53,10 +57,13 @@ class TalisMUDSessionTransaction(SessionTransaction):
     talismud_engine = None
 
     def commit(self, *args, **kwargs):
-        self.talismud_engine.log("COMMIT", (id(self),))
+        transaction = self.talismud_engine.current_transaction
+        self.talismud_engine.log("COMMIT", (transaction,))
         super().commit(*args, **kwargs)
 
     def rollback(self, *args, **kwargs):
-        self.talismud_engine.log("ROLLBACK", (id(self),))
+        transaction = self.talismud_engine.current_transaction
+        self.talismud_engine.log("ROLLBACK", (transaction,))
+        logger.group(transaction).log_group()
         self.talismud_engine.clear_cache()
         super().rollback(*args, **kwargs)

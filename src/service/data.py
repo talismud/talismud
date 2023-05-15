@@ -143,10 +143,18 @@ class Service(BaseService):
 
     def log_query(self, statement: str, args: tuple[str]):
         """Log the specified query."""
+        engine = getattr(self, "engine", None)
+        transaction = getattr(engine, "current_transaction", None)
+
         statement = statement.replace("\t", " " * 4)
         statement = ("\n" + " " * 4).join(
             [line for line in statement.splitlines()]
         )
         if args:
             statement += f"\n{' ' * 4}{args}"
-        logger.debug(f"\n{' ' * 4}{statement}")
+
+        if transaction is None:
+            logger.debug(f"\n{' ' * 4}{statement}")
+        else:
+            group = logger.group(transaction)
+            group.debug(f"\n{' ' * 4}{statement}")

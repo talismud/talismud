@@ -31,4 +31,4 @@
 """Building commands."""
 
 CATEGORY = "Building commands"
-PERMISSIONS = "admin"
+PERMISSIONS = "builder"

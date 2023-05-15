@@ -29,11 +29,14 @@
 
 """Exit handler, to store room exits."""
 
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, Type, TYPE_CHECKING
 
-from data.handler.abc import BaseHandler
+from command.special.exit import ExitCommand
+from data.base.blueprint import logger
+from data.decorators import lazy_property
 from data.direction import Direction
 from data.exit import Exit
+from data.handler.abc import BaseHandler
 
 if TYPE_CHECKING:
     from data.character import Character
@@ -64,9 +67,28 @@ class ExitHandler(BaseHandler):
 
         return tuple(exits)
 
+    @lazy_property
+    def commands(self):
+        """Return the exit commands for this room."""
+        return self._refresh_commands()
+
+    @commands.setter
+    def commands(self, commands):
+        """Modify the dictionary of commands."""
+
     def get_visible_by(self, character: "Character") -> tuple[Exit]:
         """Only return visible exits by this character."""
         return [exit for exit in self.all if exit.can_see(character)]
+
+    def get(self, direction: Direction) -> Exit | None:
+        """Return the exit room in this direction or None.
+
+        Args:
+            direction (Direction): the direction in which to test.
+
+        """
+        self.load_exits()
+        return self._exits.get(direction)
 
     def has(self, direction: Direction) -> bool:
         """Return whether this room has an exit in this direction.
@@ -77,6 +99,30 @@ class ExitHandler(BaseHandler):
         """
         self.load_exits()
         return direction in self._exits
+
+    def get_commands_for(
+        self, character: "Character"
+    ) -> dict[Direction, Type[ExitCommand]]:
+        """Return a filtered dictionary of exit commands for a character.
+
+        Args:
+            character (Character): the character to filter.
+
+        Exits that are limited in terms of permissions will not appear,
+        so an exit command for a character that cannot traverse it will
+        not be created.
+
+        Returns:
+            commands (dict): a dictionary of {Direction: ExitCommand].
+                    Exits that can not be traversed by a character
+                    will not be present in this dictionary.
+
+        """
+        return {
+            direction: command
+            for direction, command in self.commands.items()
+            if self.get(direction).can_traverse(character)
+        }
 
     def add(
         self,
@@ -116,6 +162,7 @@ class ExitHandler(BaseHandler):
             aliases=aliases or (),
         )
         self._exits[direction] = exit
+        self.commands = self._refresh_commands()
         self.save()
 
         if back:
@@ -137,3 +184,58 @@ class ExitHandler(BaseHandler):
             )
             exits = Exit.select(query)
             self._exits = {exit.direction: exit for exit in exits}
+
+    def from_blueprint(self, exits: Any) -> None:
+        """Create exits from a blueprint."""
+        room_cls = type(self.model[0])
+        for exit in exits:
+            match exit:
+                case {
+                    "direction": direction,
+                    "name": name,
+                    "destination": destination,
+                }:
+                    try:
+                        direction = Direction(direction)
+                    except ValueError as err:
+                        logger.warning(str(err))
+                        continue
+
+                    aliases = set(exit.get("aliases", direction.aliases))
+                    aliases.remove(name)
+                    destination = room_cls.get_or_none(barcode=destination)
+                    if destination is None:
+                        logger.warning(
+                            f"Cannot find the destination {destination} "
+                            f"for exit {direction.name}"
+                        )
+                        continue
+
+                    exit = self.get(direction)
+                    if exit is None:
+                        self.add(
+                            direction,
+                            destination,
+                            name,
+                            aliases=aliases,
+                            back=False,
+                        )
+                    else:
+                        exit.destination = destination
+                        exit.name = name
+                        exit.aliases = aliases
+
+    def _refresh_commands(self) -> dict:
+        """Refresh the commands."""
+        commands = {}
+        for exit in self.all:
+            attrs = {
+                "name": exit.name,
+                "alias": exit.aliases,
+                "permissions": "",
+                "exit": exit,
+            }
+            command = type(exit.name, (ExitCommand,), attrs)
+            commands[exit.direction] = command
+
+        return commands

@@ -1,4 +1,4 @@
-# Copyright (c) 2023, LE GOFF Vincent
+# Copyright (c) 2023 LE GOFF Vincent
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -27,19 +27,18 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""Simple level annotation."""
+"""Exit base command."""
 
-from enum import IntEnum
-
-
-class Level(IntEnum):
-
-    """Priority levels for logging."""
-
-    DEBUG = 1
-    INFO = 2
-    WARNING = WARN = 3
-    ERROR = 4
+from command.base import Command
 
 
-LEVELS = {level.name: level for level in Level}
+class ExitCommand(Command):
+
+    """Generic exit commands."""
+
+    in_help = False
+    exit = None
+
+    def run(self):
+        """Run the command, move through the exit."""
+        self.character.move(self.exit)

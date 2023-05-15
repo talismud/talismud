@@ -183,6 +183,10 @@ class Command(metaclass=CommandMetaclass):
             can_run (bool): whether this character can run this command.
 
         """
+        if parent := cls.parent:
+            if not parent.can_run(character):
+                return False
+
         if cls.permissions:
             return character.permissions.has(cls.permissions)
 
@@ -276,15 +280,20 @@ class Command(metaclass=CommandMetaclass):
             )
             raise
 
-    def msg(self, text: str, raw: bool = False):
+    def msg(self, text: str, raw: bool = False, prompt: bool = True):
         """Send the message to the character running the command.
 
         Args:
             text (str): text to send to the character.
             raw (bool, optional): if True, escape braces.
+            prompt (bool, optional): display the prompt.  Set this to
+                    `False` to not display a prompt below the message.
+                    Note that messages are grouped, therefore, if one
+                    of them deactive the prompt, it will be deactivated
+                    for all the group.
 
         """
-        self.character.msg(text)
+        self.character.msg(text, prompt=prompt)
 
     def display_sub_commands(self) -> None:
         """Display sub-commands to help syntax."""

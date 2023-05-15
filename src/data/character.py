@@ -38,6 +38,7 @@ from data.handler.namespace import NamespaceHandler
 from data.handler.permissions import PermissionHandler
 
 if TYPE_CHECKING:
+    from data.exit import Exit
     from data.room import Room
     from data.session import Session
 
@@ -55,7 +56,7 @@ class Character(Node):
     room: Optional["Room"] = None
     session: Optional["Session"] = None
 
-    def msg(self, text: str | bytes) -> None:
+    def msg(self, text: str | bytes, prompt: bool = True) -> None:
         """Send text to this session.
 
         This method will contact the session on the portal protocol.
@@ -65,9 +66,24 @@ class Character(Node):
 
         Args:
             text (str or bytes): the text, already encoded or not.
+            prompt (bool, optional): display the prompt.  Set this to
+                    `False` to not display a prompt below the message.
+                    Note that messages are grouped, therefore, if one
+                    of them deactive the prompt, it will be deactivated
+                    for all the group.
 
         If the text is not yet encoded, use the session's encoding.
 
         """
         if session := self.session:
-            session.msg(text)
+            session.msg(text, prompt=prompt)
+
+    def move(self, exit: "Exit"):
+        """Move through an exit in the room.
+
+        Args:
+            exit (Exit): the exit to move through.
+
+        """
+        self.location = exit.destination
+        self.msg(self.location.look(self))

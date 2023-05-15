@@ -54,11 +54,11 @@ class BaseHandler:
     def save(self):
         """Save the handler in its owner."""
         model, attr = getattr(self, "model", (None, None))
-        if model and attr:
+        if model is not None and attr is not None:
             # Force the model to save.
             field = type(model).__fields__[attr]
             if field.field_info.extra.get("savable", True):
-                setattr(model, attr, self)
+                type(model).engine.update(model, attr, self)
 
     def from_blueprint(self, value: Any) -> None:
         """Update the handler from the blueprint.

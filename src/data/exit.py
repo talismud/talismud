@@ -31,8 +31,10 @@
 
 from typing import TYPE_CHECKING
 
-from data.direction import Direction
 from data.base.link import Field, Link
+from data.base.node import Node
+from data.direction import Direction
+from data.decorators import lazy_property
 
 if TYPE_CHECKING:
     from data.character import Character
@@ -46,20 +48,41 @@ class Exit(Link):
     name: str = "not set"
     aliases: set[str] = Field(default_factory=set)
 
-    @property
+    @lazy_property
     def origin(self):
-        return type(self).get(id=self.origin_id)
+        return Node.get_or_none(id=self.origin_id)
 
-    @property
+    @lazy_property
     def destination(self):
         destination_id = self.destination_id
-        return type(self).get(id=destination_id) if destination_id else None
+        return Node.get_or_none(id=destination_id) if destination_id else None
+
+    @destination.setter
+    def destination(self, destination: Node):
+        """Change the destination of this exit."""
+        destination = destination.id if destination is not None else None
+        self.destination_id = destination
 
     def can_see(self, character: "Character") -> bool:
         """Return whether this exit can be seen by this character.
 
         Args:
             character (Character): the character trying to see this exit.
+
+        Returns:
+            can (bool): whether this character can see this exit.
+
+        """
+        return True
+
+    def can_traverse(self, character: "Character") -> bool:
+        """Return whether this exit can be traversed by this character.
+
+        Args:
+            character (Character): the character trying to traverse through.
+
+        Returns:
+            can (bool): whether this character can traverse through this exit.
 
         """
         return True

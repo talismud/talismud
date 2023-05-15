@@ -31,12 +31,12 @@
 
 from pathlib import Path
 import traceback
-from typing import Type
+from typing import Any, Type
 
 from tools.logging.abc import LoggerMetaclass
 from tools.logging.batch.abc import BaseBatch
 from tools.logging.handler.abc import BaseHandler
-from tools.logging.level import Level
+from tools.logging.level import Level, LEVELS
 from tools.logging.message import Message
 
 
@@ -47,6 +47,9 @@ class Logger(metaclass=LoggerMetaclass):
     def __init__(self, name: str, directory: str | Path | None = None):
         self.name = name
         self.handlers = []
+        self.sub_loggers = {}
+        self.cap_level = None
+        self.delayed = []
         self.init(directory=directory)
 
     def init(self, directory: str | Path | None = None):
@@ -122,3 +125,52 @@ class Logger(metaclass=LoggerMetaclass):
         message = "" if message is None else message
         message += "\n" + traceback.format_exc().strip()
         self.log(Level.ERROR, message)
+
+    def group(
+        self, identifier: Any, cap_level: Level = Level.WARNING
+    ) -> "Logger":
+        """Create or return a sub-logger for this identifier.
+
+        This is useful to group messages but not log them, unless the group
+        ends with an error.
+
+        Args:
+            identifier (any): the identifier.
+            cap_level (level, optional): the level at which messages
+                    should be logged and not grouped anymore.
+
+        Returns:
+            sub_logger (Logger): a sub-logger.
+
+        """
+        if (sub := self.sub_loggers.get(identifier)) is None:
+            sub = Logger(f"{self.name}:{identifier}", self.directory)
+            sub.cap_level = cap_level
+            sub.handlers = self.handlers
+            sub.log = sub.delay_log
+            self.sub_loggers[identifier] = sub
+
+        return sub
+
+    def delay_log(self, level: Level, message: str) -> None:
+        """Delay log unless the message is WARNING or greater.
+
+        Args:
+            level (Level): the message level.
+            message (str): the message itself.
+
+        """
+        message = Message.create_for(self, level, message)
+        self.delayed.append(message)
+        if level >= self.cap_level:
+            # Log everything.
+            self.log_group()
+
+    def log_group(self):
+        """Log all the messages in the group."""
+        for message in self.delayed:
+            for handler in self.handlers:
+                level = LEVELS[message.level]
+                if handler.can_process(level, message):
+                    handler.process(level, message)
+        self.delayed.clear()

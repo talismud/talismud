@@ -53,6 +53,7 @@ class Node(Model):
     id: int = Field(primary_key=True)
     location_id: int | None
     location_index: int | None
+    location_filter: str | None
     locator: LocationHandler = Field(default_factory=LocationHandler)
 
     @property

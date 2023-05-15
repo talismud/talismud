@@ -55,7 +55,7 @@ class Help(Command):
         """Run the command."""
         commands = Command.service.commands
         commands = {
-            command.name: command
+            command.full_name: command
             for command in commands.values()
             if command.in_help
         }
@@ -67,7 +67,7 @@ class Help(Command):
             }
 
         if name:
-            command = commands.get(name)
+            command = commands.get(name.lower())
             if command is None:
                 self.msg(f"Cannot find this command: '{name}'.")
             else:
@@ -81,6 +81,9 @@ class Help(Command):
             view.items.indent_width = 4
             categories = defaultdict(list)
             for command in commands.values():
+                if command.parent:
+                    continue
+
                 categories[command.category].append(command)
 
             for category, commands in sorted(categories.items()):

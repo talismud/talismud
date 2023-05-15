@@ -111,7 +111,7 @@ class Model(BaseModel, metaclass=ModelMetaclass):
         keep_untouched = (LazyPropertyDescriptor,)
         validate_assignment = True
         arbitrary_types_allowed = True
-        copy_on_model_validation = False
+        copy_on_model_validation = None
 
 
 def fetch(model_class: Type[Model], attrs: dict[str, Any]) -> Model | None:

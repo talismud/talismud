@@ -31,7 +31,7 @@
 
 from itertools import chain
 import pickle
-from typing import Any, Type, TYPE_CHECKING
+from typing import Any, Optional, Type, TYPE_CHECKING
 
 from pydantic import Field
 from pydantic.main import ModelMetaclass as BaseModelMetaclass
@@ -197,7 +197,20 @@ class ModelMetaclass(BaseModelMetaclass):
         return ModelMetaclass.engine.create_model(cls, **kwargs)
 
     def get(cls, **kwargs):
-        """Try to retrieve the object from storage."""
+        """Try to retrieve the object from storage, raises NotFound if error.
+
+        Primary key or unique fields should be specified as keyword arguments.
+
+        """
+        return ModelMetaclass.engine.get_model(cls, **kwargs)
+
+    def get_or_none(cls, **kwargs) -> Optional["Model"]:
+        """Try to retrieve the object from storage, return None if not found.
+
+        Primary key or unique fields should be specified as keyword arguments.
+
+        """
+        kwargs["raise_not_found"] = False
         return ModelMetaclass.engine.get_model(cls, **kwargs)
 
     def all(cls) -> list["Model"]:

@@ -48,7 +48,7 @@ a single context: the one that interprets commands.
 import inspect
 from textwrap import dedent
 import traceback
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from context.log import logger
 from data.decorators import lazy_property
@@ -334,14 +334,19 @@ class Context:
 
         return res
 
-    def msg(self, text: Union[str, bytes]):
+    def msg(self, text: str | bytes, prompt: bool = True):
         """Send some text to the context session.
 
         Args:
             text (str or bytes): text to send.
+            prompt (bool, optional): display the prompt.  Set this to
+                    `False` to not display a prompt below the message.
+                    Note that messages are grouped, therefore, if one
+                    of them deactive the prompt, it will be deactivated
+                    for all the group.
 
         """
-        self.session.msg(text)
+        self.session.msg(text, prompt=prompt)
 
     def move(self, context_path: str):
         """Move to a new context.

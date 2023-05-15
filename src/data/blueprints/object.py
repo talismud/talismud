@@ -31,8 +31,6 @@
 
 from data.blueprints.base import BlueprintModel
 from data.object import Object
-from data.prototype.object import ObjectPrototype
-from data.room import Room
 
 
 class ObjectBlueprint(BlueprintModel):
@@ -40,7 +38,7 @@ class ObjectBlueprint(BlueprintModel):
     """Blueprint for object prototypes."""
 
     name = "object"
-    model = ObjectPrototype
+    model_path = "data.prototype.object.ObjectPrototype"
     special = {
         "objects": list,
     }
@@ -48,6 +46,8 @@ class ObjectBlueprint(BlueprintModel):
     @classmethod
     def update_objects(cls, logger, prototype, objects):
         """Update the list of objects."""
+        from data.room import Room
+
         for definition in objects:
             barcode = definition.pop("barcode", None)
             if barcode is None:

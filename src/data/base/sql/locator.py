@@ -50,11 +50,16 @@ class Locator:
         """Clear all contents."""
         self.contents.clear()
 
-    def get_at(self, location_id: int) -> list["Node"]:
+    def get_at(
+        self, location_id: int, filter: str | None = None
+    ) -> list["Node"]:
         """Load all nodes from a location ID.
+
+        If a filter is specified, only load nodes with this filter.
 
         Args:
             location_id (int): the location ID.
+            filter (str, optional): the location filter.
 
         Returns:
             nodes (list of Node): all nodes with this location.
@@ -63,6 +68,11 @@ class Locator:
 
         """
         if nodes := self.contents.get(location_id):
+            if filter is not None:
+                return [
+                    node for node in nodes if node.location_filter == filter
+                ]
+
             return nodes
 
         nodes = self.engine.select_models(
@@ -70,9 +80,15 @@ class Locator:
         )
         nodes.sort(key=lambda node: node.location_index)
         self.contents[location_id] = nodes
+
+        if filter is not None:
+            nodes = [node for node in nodes if node.location_filter == filter]
+
         return nodes
 
-    def move(self, node: "Node", new_location_id: int) -> None:
+    def move(
+        self, node: "Node", new_location_id: int, filter: str | None = None
+    ) -> None:
         """Move this node to a new location.
 
         The node is added at the end of a location (maximum index).
@@ -80,6 +96,7 @@ class Locator:
         Args:
             node (Node): the node to move.
             new_location_id (int): the new location as ID.
+            filter (str, optional): the new location filter of this node.
 
         The cache is refreshed if necessary.
 
@@ -114,3 +131,6 @@ class Locator:
             self.contents[new_location_id] = [node]
 
         node.location_id = new_location_id
+
+        if filter is not None:
+            node.location_filter = filter

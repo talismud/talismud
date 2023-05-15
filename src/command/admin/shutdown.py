@@ -44,5 +44,5 @@ class Shutdown(Command):
 
     def run(self, args):
         """Run the command."""
-        self.msg("Preparing to stop the game and portal.")
+        self.msg("Preparing to stop the game and portal.", prompt=False)
         PORTAL_COMMANDS.put_nowait(("stop_portal", {}))

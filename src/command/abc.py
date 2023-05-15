@@ -32,6 +32,8 @@
 
 from typing import Any
 
+from data.decorators import lazy_property
+
 
 class CommandMetaclass(type):
 
@@ -46,3 +48,21 @@ class CommandMetaclass(type):
             parent.sub_commands.add(new_cls)
 
         return new_cls
+
+    @lazy_property
+    def full_name(cls) -> str:
+        """Return the command's full name."""
+        name = ""
+        if parent := cls.parent:
+            name = parent.full_name
+            sep = parent.seps
+            if isinstance(sep, tuple):
+                if sep:
+                    sep = sep[0]
+
+            if not isinstance(sep, str):
+                sep = ""
+
+            name += sep
+
+        return f"{name}{cls.name}"

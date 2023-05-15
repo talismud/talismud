@@ -30,19 +30,28 @@
 """World service, here to handle blueprints."""
 
 from pathlib import Path
-from typing import Any, Dict, Sequence
+from typing import Any
 
 from dynaconf import settings
 
 import yaml
 
-from data.blueprints.abc import BlueprintMetaclass
-from data.handler.abc import BaseHandler
+from data.base.blueprint import Blueprint, logger
 from service.base import BaseService
-from tools.logging.frequent import FrequentLogger
 
-logger = FrequentLogger("world")
-logger.setup()
+
+# Setup the YAML parser/representer.
+def str_presenter(dumper, data):
+    """Force using the | format with multiline strings."""
+    if len(data.splitlines()) > 1:  # check for multiline string
+        return dumper.represent_scalar(
+            "tag:yaml.org,2002:str", data, style="|"
+        )
+
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+yaml.add_representer(str, str_presenter)
 
 
 class Service(BaseService):
@@ -64,13 +73,21 @@ class Service(BaseService):
 
     async def setup(self):
         """Set the MudIO up."""
+        Blueprint.service = self
         self.load_blueprints()
         data = self.parent.services["data"]
 
-        for blueprint in self.blueprints.values():
-            if settings.BLUEPRINT_AUTO_APPLY:
+        if settings.BLUEPRINT_AUTO_APPLY:
+            logger.debug("Handling priority objects in blueprints")
+            for blueprint in self.blueprints.values():
                 with data.engine.session.begin():
                     blueprint.apply()
+
+            # Apply delayed blueprints.
+            logger.debug("Handling delayed objects in blueprints")
+            for blueprint in self.blueprints.values():
+                with data.engine.session.begin():
+                    blueprint.complete()
 
     async def cleanup(self):
         """Clean the service up before shutting down."""
@@ -106,105 +123,26 @@ class Service(BaseService):
                         f"Loaded {bp_name} in {file_path} successfully."
                     )
 
-                    blueprint = Blueprint(bp_name, file_path, blueprint)
+                    blueprint = Blueprint(bp_name, file_path, list(blueprint))
                     self.blueprints[bp_name] = blueprint
 
+    def update_document(
+        self, blueprint: str, document_id: int, definition: dict[str, Any]
+    ) -> None:
+        """Update and save a blueprint.
 
-class Blueprint:
+        Args:
+            blueprint (str): the blueprint's unique name.
+            document_id (int): the document ID to update.
+            definition (dict): the new definition.
 
-    """A blueprint object, containing world definitions."""
+        """
+        blueprint = self.blueprints[blueprint]
+        blueprint.update_document(document_id, definition)
+        documents = [
+            document.pop("document_id", True) and document
+            for document in [dict(d) for d in blueprint.content]
+        ]
 
-    def __init__(
-        self,
-        unique_name: str,
-        file_path: Path,
-        content: Sequence[Dict[str, Any]],
-    ):
-        self.unique_name = unique_name
-        self.file_path = file_path
-        self.content = content
-
-    def apply(self):
-        """Apply the entire blueprint."""
-        for definition in self.content:
-            d_type = definition.pop("type", None)
-            if d_type is None:
-                logger.warning(
-                    f"This blueprint definition has no type: {definition}"
-                )
-                continue
-
-            if d_type not in BlueprintMetaclass.models:
-                logger.warning("Unknown type: {d_type}")
-                continue
-
-            schema = BlueprintMetaclass.models[d_type]
-            model = schema.model
-            keys = {}
-            for field in model.__fields__.values():
-                if field.field_info.extra.get("bpk", False):
-                    value = definition.get(field.name, ...)
-                    if value is ...:
-                        continue
-
-                    keys[field.name] = value
-
-            if not keys:
-                logger.warning(
-                    f"No blueprint key was identified for {definition}"
-                )
-                continue
-
-            # Try go get the object from the database.
-            obj = model.get(raise_not_found=False, **keys)
-            path = model.class_path
-            if obj is not None:
-                logger.debug(f"{path} {obj} was found and will be updated.")
-
-                for key, value in definition.items():
-                    if key in schema.special:
-                        continue
-
-                    field = model.__fields__[key]
-                    if issubclass(field.type_, BaseHandler):
-                        getattr(obj, key).from_blueprint(value)
-                    else:
-                        setattr(obj, key, value)
-            else:
-                # The object will be created.
-                logger.debug(f"Attempting to create {keys}")
-                safe, handlers = {}, {}
-                for field in model.__fields__.values():
-                    value = definition.get(field.name, ...)
-                    if value is ...:
-                        continue
-
-                    if issubclass(field.type_, BaseHandler):
-                        handlers[field.name] = value
-                    else:
-                        safe[field.name] = value
-
-                try:
-                    obj = model.create(**safe)
-                except Exception:
-                    logger.exception(
-                        f"An error occurred while creating {path}:"
-                    )
-
-                # Update the handler values.
-                for key, value in handlers.items():
-                    getattr(obj, key).from_blueprint(value)
-
-            # Take care of the special attributes.
-            for name in schema.special:
-                method_name = f"update_{name}"
-                method = getattr(schema, method_name, None)
-                if method is None:
-                    logger.error(
-                        f"{name!r} is a special case for {model}, "
-                        f"but there is no method {method_name!r} in {schema}"
-                    )
-
-                special = definition.pop(name, ...)
-                if special is not ...:
-                    method(logger, obj, special)
+        with blueprint.file_path.open("w", encoding="utf-8") as file:
+            yaml.dump_all(documents, file, sort_keys=False, allow_unicode=True)

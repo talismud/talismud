@@ -52,23 +52,43 @@ class LocationHandler(BaseHandler):
         model, _ = self.model
         return type(model).engine.locator.get_at(model.id)
 
-    def how_many(self, content: "Node") -> int:
+    @property
+    def all_contents(self):
+        """Return contents and stackables in a tuple of tuple."""
+        model, _ = self.model
+        non_stackables = self.contents
+        result = [(node, 1, node.location_filter) for node in non_stackables]
+
+        for ((node_id, filter), quantity) in self._stackables.items():
+            stackable = type(model).engine.get_model(
+                type(model), raise_not_found=False, id=node_id
+            )
+
+            if stackable is not None:
+                result.append((stackable, quantity, filter))
+
+        return result
+
+    def how_many(self, content: "Node", filter: str | None = None) -> int:
         """Return the quantity of the specified node.
 
         If the node is unique, it will return either 0 or 1.  It will
         return a potentially greater number if this object is stackable.
+        If a filter is specified, filter nodes further.
 
         Args:
             content (Node): the content.
+            filter (str, optional): the location filter.
 
         Returns:
             quantity (int): the quantity as 0 or greater.
 
         """
         if self.is_stackable(content):
-            quantity = self._stackables.get(content.id, 0)
+            quantity = self._stackables.get((content.id, filter), 0)
         else:
-            quantity = 1 if content in self.contents else 0
+            contents = type(content).engine.locator.get_at(content.id, filter)
+            quantity = 1 if content in contents else 0
 
         return quantity
 
@@ -84,13 +104,20 @@ class LocationHandler(BaseHandler):
 
         return location
 
-    def set(self, new_location: Optional["Node"]):
+    def set(
+        self,
+        new_location: Optional["Node"],
+        old_filter: str | None = None,
+        new_filter: str | None = None,
+    ) -> None:
         """Change the current model's location to a new location.
 
         This will fail (with a ValueError) if the current model is stackable.
 
         Args:
             new_location (Node or None): the new location.
+            old_filter (str, optional): the old location filter.
+            new_filter (str, optional): the new location filter.
 
         """
         model, _ = self.model
@@ -104,13 +131,17 @@ class LocationHandler(BaseHandler):
                     f"Use `location.locator.transfer` instead."
                 )
 
-            new_location.locator.transfer(model)
+            new_location.locator.transfer(
+                model, old_filter=old_filter, new_filter=new_filter
+            )
 
     def transfer(
         self,
         content: "Node",
         origin: Optional["Node"] = None,
         quantity: int = 1,
+        old_filter: str | None = None,
+        new_filter: str | None = None,
     ) -> int:
         """Place the specified content from origin into the current location.
 
@@ -129,6 +160,8 @@ class LocationHandler(BaseHandler):
             quantity (int, optional): the quantity (1 by default).
                     This is useful for stackable objects.  The quantity
                     will be ignored for unique contents.
+            old_filter (str, optional): the old location filter.
+            new_filter (str, optional): the new location filter.
 
         Returns:
             quantity (int): the quantity of transferred objects.
@@ -137,49 +170,59 @@ class LocationHandler(BaseHandler):
         model, _ = self.model
         if self.is_stackable(content):
             # Remove the quantity from the content first.
-            quantity = origin.locator.remove(content, quantity)
+            quantity = origin.locator.remove(
+                content, quantity, filter=old_filter
+            )
             if quantity > 0:
-                self._stackables[content.id] += quantity
+                self._stackables[(content.id, new_filter)] += quantity
                 self.save()
         else:
-            type(model).engine.locator.move(content, model.id)
+            type(model).engine.locator.move(
+                content, model.id, filter=new_filter
+            )
             quantity = 1
 
         return quantity
 
-    def add(self, content: "Node", quantity: int) -> int:
+    def add(
+        self, content: "Node", quantity: int, filter: str | None = None
+    ) -> int:
         """Add the stackable node in this location.
 
         Args:
             content (Node): the object (must be stackable).
             quantity (int): the quantity to add.
+            filter (str, optional): the new location filter.
 
         """
         if self.is_stackable(content):
-            self._stackables[content.id] += quantity
+            self._stackables[(content.id, filter)] += quantity
             self.save()
         else:
             raise ValueError(f"the node[{content.id}] isn't stackable")
 
-    def remove(self, content: "Node", quantity: int) -> int:
+    def remove(
+        self, content: "Node", quantity: int, filter: str | None = None
+    ) -> int:
         """Remove and return the removed quantity from a stackable object.
 
         Args:
             content Node: the object (must be stackable).
             quantity (int): the maximum quantity to remove.
+            filter (str, optional): the old filter.
 
         If the object is not present in the current location, simply
         rerusn `0`.  Otherwise, returns the actual quantity that could
         be removed.
 
         """
-        current = self._stackables.get(content.id)
+        current = self._stackables.get((content.id, filter))
         if current:
             if quantity >= current:
                 quantity = current
-                self._stackables.pop(content.id)
+                self._stackables.pop((content.id, filter))
             else:
-                self._stackables[content.id] = current - quantity
+                self._stackables[(content.id, filter)] = current - quantity
 
             self.save()
         else:

@@ -129,6 +129,31 @@ class Service(BaseService):
         except asyncio.CancelledError:
             pass
 
+    def forward(cmd_name: str):
+        """Forward the command and its reply.
+
+        This is useful to perform a very common task: forwarding a command
+        from a launcher to the game, and the game's response
+        back to the same launcher.
+
+        Args:
+            cmd_name (str): the command name.
+
+        """
+
+        async def just_reply(self, origin: Origin, **kwargs):
+            """Forward the request."""
+            crux = self.services["crux"]
+            result = await crux.wait_for_answer(
+                self.game_writer, cmd_name, kwargs, timeout=4
+            )
+            await crux.answer(origin, result)
+
+        name = f"handle_{cmd_name}"
+        just_reply.__name__ = name
+        just_reply.__qualname__ = name
+        return just_reply
+
     async def handle_register_game(
         self, origin: Origin, pid: int, has_admin: bool = False
     ):
@@ -360,3 +385,13 @@ class Service(BaseService):
             self.game_writer, "shell", dict(code=code), timeout=None
         )
         await crux.answer(origin, result)
+
+    async def handle_blueprints(self, origin: Origin):
+        """Forward the request for blueprints."""
+        crux = self.services["crux"]
+        result = await crux.wait_for_answer(
+            self.game_writer, "blueprints", timeout=4
+        )
+        await crux.answer(origin, result)
+
+    handle_update_document = forward("update_document")

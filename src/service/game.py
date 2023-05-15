@@ -33,6 +33,7 @@ import asyncio
 from datetime import datetime
 import pickle
 from queue import Queue
+from typing import Any
 from uuid import UUID
 
 from data.delay import Delay as DbDelay
@@ -305,3 +306,56 @@ class Service(BaseService):
 
         await self.mudio.send_output(0)
         await self.send_portal_commands()
+
+    async def handle_blueprints(
+        self,
+        origin: Origin,
+        **kwargs,
+    ):
+        """Send back the list of blueprints.
+
+        Args:
+            None.
+
+        Answer:
+            blueprints: the list of blueprints.
+
+        """
+        blueprints = {}
+        for name, blueprint in self.world.blueprints.items():
+            blueprints[name] = blueprint.content
+
+        await self.host.answer(origin, dict(blueprints=blueprints))
+
+    async def handle_update_document(
+        self,
+        origin: Origin,
+        blueprint: str,
+        document_id: int,
+        definition: dict[str, Any],
+        **kwargs,
+    ):
+        """Update a specific object in a blueprint.
+
+        Args:
+            blueprint (str): the unique name of the blueprint.
+            document_id (int): the unique ID of the document eo edit within it.
+            definition (dict): the new document definition.
+
+        Answer:
+            (updated, reason): where updated is a boolean and reason is str.
+
+        """
+        blueprint = self.world.blueprints.get(blueprint.lower())
+        if blueprint is None:
+            response = (False, "cannot find this blueprint")
+        else:
+            if document_id not in blueprint.ids:
+                response = (False, "cannot find this document")
+            else:
+                self.world.update_document(
+                    blueprint.unique_name, document_id, definition
+                )
+                response = (True, "all clear")
+
+        await self.host.answer(origin, dict(status=response))

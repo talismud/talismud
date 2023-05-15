@@ -30,12 +30,14 @@
 """Launcher service."""
 
 import argparse
+import asyncio
 from enum import Enum, Flag, auto
 from pathlib import Path
 import time
 from uuid import UUID
 
 from alembic.config import CommandLine as AlembicCommandLine
+from async_timeout import timeout as async_timeout
 from beautifultable import BeautifulTable
 
 from service.base import BaseService
@@ -310,10 +312,10 @@ class Service(BaseService):
         await host.send_cmd(host.writer, "stop_portal")
 
         # 4. Wait for any command to be received.  None should.
-        while result := await host.wait_for_cmd(host.reader, "*", timeout=0.1):
-            success, _ = result
-            if not success:
-                break
+        async with async_timeout(20):
+            while host.connected:
+                await host.wait_for_cmd(host.reader, "*", timeout=0.2)
+                await asyncio.sleep(0.5)
 
         if host.connected:
             self.operations = MUDOp.PORTAL_ONLINE | MUDOp.GAME_ONLINE

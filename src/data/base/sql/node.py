@@ -45,6 +45,7 @@ class Node(BASE):
     locator = Column(LargeBinary)
     location_id = Column(Integer, ForeignKey("node.id"))
     location_index = Column(Integer)
+    location_filter = Column(String)
 
     # Class attributes.
     engine = None

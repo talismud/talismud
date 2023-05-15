@@ -37,5 +37,6 @@ class BlueprintModel(metaclass=BlueprintMetaclass):
     """Base blueprint model."""
 
     name = ""
-    model = None
+    model_path = None
+    to_delay = set()
     special = {}

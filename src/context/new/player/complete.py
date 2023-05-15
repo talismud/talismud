@@ -49,6 +49,8 @@ class Complete(Context):
 
         if Player.count() == 1:
             player.permissions.add("admin")
+        else:
+            player.permissions.add("player")
 
         self.msg(f"The character {name} has been created successfully.")
         self.session.db.character = player

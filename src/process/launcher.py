@@ -98,10 +98,6 @@ class Launcher(Process):
     name = "launcher"
     services = ("launcher",)
 
-    def __init__(self):
-        super().__init__()
-        self.window_task = None
-
     async def setup(self):
         """Called when services have all been started."""
         args = parser.parse_args()
@@ -118,5 +114,3 @@ class Launcher(Process):
 
     async def cleanup(self):
         """Called when the process is about to be stopped."""
-        if self.window_task:
-            self.window_task.cancel()

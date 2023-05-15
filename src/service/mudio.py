@@ -282,21 +282,26 @@ class Service(BaseService):
 
         async with self.output_lock:
             while not OUTPUT_QUEUE.empty():
-                ssid, msg = OUTPUT_QUEUE.get_nowait()
-                to_send[ssid].append(msg)
+                ssid, msg, options = OUTPUT_QUEUE.get_nowait()
+                to_send[ssid].append((msg, options))
 
             # At this point, messages have been sorted by session.
             for ssid, messages in to_send.items():
                 session = data.get_session(ssid)
+                options = [msg[1] for msg in messages]
+                messages = [msg[0] for msg in messages]
                 msg = b"\n".join(messages)
 
                 # Display the context prompt.
-                prompt = session.context.get_prompt()
-                if isinstance(prompt, str):
-                    prompt = prompt.encode(session.encoding, errors="replace")
+                if all(option.get("prompt", False) for option in options):
+                    prompt = session.context.get_prompt()
+                    if isinstance(prompt, str):
+                        prompt = prompt.encode(
+                            session.encoding, errors="replace"
+                        )
 
-                if prompt:
-                    msg = msg + b"\n\n" + prompt
+                    if prompt:
+                        msg = msg + b"\n\n" + prompt
 
                 # Send the output to the session.
                 await host.send_cmd(

@@ -31,7 +31,7 @@
 
 from datetime import datetime
 from queue import Queue
-from typing import Optional, Union, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
 from dynaconf import settings
@@ -80,7 +80,7 @@ class Session(Model):
         self.context_path = new_context.pyname
         self.context_options = new_context.options
 
-    def msg(self, text: Union[str, bytes]) -> None:
+    def msg(self, text: str | bytes, prompt: bool = True) -> None:
         """Send text to this session.
 
         This method will contact the session on the portal protocol.
@@ -90,6 +90,11 @@ class Session(Model):
 
         Args:
             text (str or bytes): the text, already encoded or not.
+            prompt (bool, optional): display the prompt.  Set this to
+                    `False` to not display a prompt below the message.
+                    Note that messages are grouped, therefore, if one
+                    of them deactive the prompt, it will be deactivated
+                    for all the group.
 
         If the text is not yet encoded, use the session's encoding.
 
@@ -98,7 +103,7 @@ class Session(Model):
             text = text.encode(self.encoding, errors="replace")
 
         if isinstance(text, bytes):
-            OUTPUT_QUEUE.put((self.uuid, text))
+            OUTPUT_QUEUE.put((self.uuid, text, {"prompt": prompt}))
 
     def login(self, character: "Character") -> None:
         """Login to a character."""

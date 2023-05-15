@@ -150,7 +150,35 @@ default_encoding = "utf-8"
 # to 'sh' could be problematic for instance).
 can_shorten_commands = true
 
-# 7. Content creation settings
+# 7. Permissions and rights
+# This section contains permissions and rights.  It can be used
+# to configure group of users according to roles.
+
+# Roles and permission groups
+# By default, TalisMUD offers 4 permissions:
+# - "npc": the lowest-level permission, it contains most character commands.
+# - "player": includes "npc" and allow extra commands (like "quit").
+# - "builder": includes "player" and add builder-only commands.
+# - "admin": includes "builder" commands and add admin-only commands.
+# You can remove or add groups.  A group is specified in this configuration
+# following this syntax:
+# group.[name] = ["gorup 1 to include", "group 2 to include", ...]
+# So if you want to add a "helper" role that includes "player"
+# with some additional commands:
+# group.helper = ["player"]
+# Permissions are set on individual commands (see the `permissions`
+# class variable of commands in code).
+# When a character changes permission, TalisMUD checks the included
+# group.  For instance, if a player becomes an admin (we add the "admin" group
+# to him), TalisMUD will consider that "admin" contains "builder",
+# "builder" contains "player", "player" contains "npc" and add all permissions
+# to this player.  The same happens (in reverse) when a permission is removed.
+group.npc = []
+group.player = ["npc"]
+group.builder = ["player"]
+group.admin = ["builder"]
+
+# 8. Content creation settings
 
 # These settings affect how your builders can work to contribute content
 # to TalisMUD.

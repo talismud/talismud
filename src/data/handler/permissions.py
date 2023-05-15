@@ -29,6 +29,10 @@
 
 """Permissions custom field, to hold permissions."""
 
+from typing import Sequence
+
+from dynaconf import settings
+
 from data.handler.abc import BaseHandler
 
 
@@ -49,6 +53,7 @@ class PermissionHandler(BaseHandler):
         """
         if permission not in self._permissions:
             self._permissions.add(permission)
+            self._extrapolate()
             self.save()
 
     def clear(self):
@@ -66,6 +71,7 @@ class PermissionHandler(BaseHandler):
         """
         if permission in self._permissions:
             self._permissions.discard(permission)
+            self._extrapolate()
             self.save()
 
     def has(self, permission: str) -> bool:
@@ -89,4 +95,24 @@ class PermissionHandler(BaseHandler):
         """
         if permission in self._permissions:
             self._permissions.remove(permission)
+            self._extrapolate()
             self.save()
+
+    def _extrapolate(self) -> None:
+        """Use the set groups to adjust real permissions."""
+        self._permissions = self._extend_groups(self._permissions)
+
+    @staticmethod
+    def _extend_groups(
+        permissions: Sequence[str], group: set[str] | None = None
+    ) -> set[str]:
+        """Extract permissions and sub-permissions recursively."""
+        group = group if group is not None else set()
+        for permission in permissions:
+            if permission not in group:
+                group.add(permission)
+                sub_groups = settings.GROUP.get(permission.lower(), [])
+                if sub_groups:
+                    PermissionHandler._extend_groups(sub_groups, group)
+
+        return group

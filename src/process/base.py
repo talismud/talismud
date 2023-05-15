@@ -72,7 +72,7 @@ class Process(metaclass=ABCMeta):
         desc += ">"
         return desc
 
-    async def start(self):
+    async def start(self, wait_event: bool = True):
         """Called when the process starts."""
         self.should_stop = asyncio.Event()
         self.logger.debug(f"Starting process (PID={self.pid}...")
@@ -87,7 +87,9 @@ class Process(metaclass=ABCMeta):
         self.logger.debug("... process started.")
         self.started = True
         await self.setup()
-        await self.should_stop.wait()
+
+        if wait_event:
+            await self.should_stop.wait()
 
     async def stop(self):
         """Called when the process stop."""

@@ -30,7 +30,6 @@
 """Module containing the blueprint model for room."""
 
 from data.blueprints.base import BlueprintModel
-from data.room import Room
 
 
 class RoomBlueprint(BlueprintModel):
@@ -38,4 +37,5 @@ class RoomBlueprint(BlueprintModel):
     """Blueprint for rooms."""
 
     name = "room"
-    model = Room
+    model_path = "data.room.Room"
+    to_delay = {"exits"}

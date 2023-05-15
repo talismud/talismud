@@ -31,6 +31,9 @@
 
 from typing import Any
 
+from data.base.abc import ModelMetaclass
+from data.decorators import lazy_property
+
 
 class BlueprintMetaclass(type):
 
@@ -44,3 +47,8 @@ class BlueprintMetaclass(type):
         new_cls = super().__new__(cls, name, bases, attrs)
         BlueprintMetaclass.models[new_cls.name] = new_cls
         return new_cls
+
+    @lazy_property
+    def model(cls):
+        """Return the model at this class path."""
+        return ModelMetaclass.get_class_from_path(cls.model_path)
